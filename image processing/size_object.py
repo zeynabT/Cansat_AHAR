@@ -41,13 +41,12 @@ def calculate_area(shape, cnt, pixel_per_m):
     area_in_m2 = area_in_pixels / (pixel_per_m ** 2)
     return area_in_m2
 
-# img_path = "./shapes_and_colors.png"
-# img_path = "./photo_2024-08-03_09-55-51.jpg"
-img_path = "./final.jpg"
-# img_path = "./test5-90cm.jpg"
+
+img_path = "./image processing/image/1_0-3_6.jpg"
+
 
 image = cv2.imread(img_path)
-image_height_in_m = 3.7
+image_height_in_m = 0.3
 
 if image is None:
     print("Error: Unable to load the image.")
@@ -81,7 +80,7 @@ else:
     pixel_per_m = image_height_in_pixels / image_height_in_m
 
     header = ['color', 'color_name', 'hexa', 'r', 'g', 'b']
-    csv = pd.read_csv('colors.csv', names=header, header=0)  
+    csv = pd.read_csv('./image processing/colors.csv', names=header, header=0)  
 
     sd = ShapeDetector()
 
