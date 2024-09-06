@@ -42,7 +42,6 @@ def calculate_area(shape, cnt, pixel_per_m):
     return area_in_m2
 
 
-# img_path = "./image/1_0-3_6.jpg"
 img_path = "./image processing/image/1_0-3_6.jpg"
 
 
