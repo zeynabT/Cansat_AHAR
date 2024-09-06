@@ -43,7 +43,7 @@ def calculate_area(shape, cnt, pixel_per_m):
 
 
 # img_path = "./image/1_0-3_6.jpg"
-img_path = "H:/CANSAT/edit_git_version/Cansat_AHAR/image processing/image/1_0-3_6.jpg"
+img_path = "./image processing/image/1_0-3_6.jpg"
 
 
 image = cv2.imread(img_path)
@@ -81,7 +81,7 @@ else:
     pixel_per_m = image_height_in_pixels / image_height_in_m
 
     header = ['color', 'color_name', 'hexa', 'r', 'g', 'b']
-    csv = pd.read_csv('colors.csv', names=header, header=0)  
+    csv = pd.read_csv('./image processing/colors.csv', names=header, header=0)  
 
     sd = ShapeDetector()
 
