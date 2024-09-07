@@ -6,7 +6,7 @@ def read_gps_data():
     ser = serial.Serial(
         port='/dev/serial0',  # Use the correct serial port
         baudrate=9600,        # Baud rate for the MC60
-        timeout=1             # Timeout in seconds
+        timeout=4             # Timeout in seconds
     )
 
     try:
