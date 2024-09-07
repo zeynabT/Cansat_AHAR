@@ -40,8 +40,8 @@ def calculate_area(shape, cnt, pixel_per_m):
     area_in_m2 = area_in_pixels / (pixel_per_m ** 2)
     return area_in_m2
 
-img_path = "./image processing/image/10_3-68-609.jpg"
-real_world_height_in_m = 3.7  # Real-world height of the scene
+img_path = "./image processing/image/9_21_352rectan_57circle.jpg"
+real_world_height_in_m = 21  # Real-world height of the scene
 
 image = cv2.imread(img_path)
 
@@ -66,7 +66,6 @@ else:
         print("No contours found.")
         exit()
 
-    # Image dimensions
     image_height_in_pixels = image.shape[0]
     image_width_in_pixels = image.shape[1]
 
@@ -107,15 +106,8 @@ else:
             box = perspective.order_points(box)
             cv2.drawContours(image, [box.astype("int")], -1, (0, 255, 0), 2)
 
-        # Calculate area
         area_in_m2 = calculate_area(shape, cnt, pixel_per_m)
 
-        # Print area for debugging
-        area_in_pixels = cv2.contourArea(cnt)
-        print(f"Shape: {shape}")
-        print(f"Area in Pixels: {area_in_pixels}")
-        print(f"Area in m²: {area_in_m2}")
-        print(f"Pixel per Meter: {pixel_per_m}\n")
 
         # Draw area and color information
         if shape == "circle":
@@ -133,5 +125,13 @@ else:
         cv2.putText(image, f"{color_name} ({shape})", (center_x, center_y), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
-    # Show the image with the drawn contours and text
+        # Print area for debugging
+        area_in_pixels = cv2.contourArea(cnt)
+        print(f"Shape: {shape}")
+        print(f"Area in m²: {area_in_m2}")
+        print(f"Color: {color_name}\n")
+        
+        # print(f"Area in Pixels: {area_in_pixels}")
+        # print(f"Pixel per Meter: {pixel_per_m}\n")
+
     show_images([image])
