@@ -1,139 +1,285 @@
-
+# In The Name Of Allah
+import smbus2, time
 import smbus
 import time
-import RPi.GPIO as GPIO
-import serial
+import threading
+from smbus2 import SMBus
+from mpu9250_jmdev.registers import *
+from mpu9250_jmdev.mpu_9250 import MPU9250
+from picamera2 import Picamera2
+from PIL import Image
+import io
+
+# vars
+eCO2 = 0
+TVOC = 0
+pressure = 0
+altitude = 0
+cTemp = 0
+accel_data = []
+gyro_data = []
+mag_data = []
+temp_c = 0
+humidity = 0
+camera_path = ''
+
+# Constants for the CCS811
+CCS811_I2C_ADDRESS = 0x5A
+CCS811_STATUS = 0x00
+CCS811_MEAS_MODE = 0x01
+CCS811_ALG_RESULT_DATA = 0x02
+CCS811_APP_START = 0xF4
 
 
-# Acceleration
-# ADXL345 I2C address
-ADXL345_ADDR = 0x68
-
-ADXL345_REG_DEVID = 0x00
-ADXL345_REG_POWER_CTL = 0x2D
-ADXL345_REG_DATA_FORMAT = 0x31
-ADXL345_REG_DATAX0 = 0x32
-ADXL345_REG_DATAX1 = 0x33
-ADXL345_REG_DATAY0 = 0x34
-ADXL345_REG_DATAY1 = 0x35
-ADXL345_REG_DATAZ0 = 0x36
-ADXL345_REG_DATAZ1 = 0x37
-# End acceleration
-
-
-def buzzer():
-
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(4, GPIO.OUT)
-
-    # Test Buzzer
-    GPIO.output(4, GPIO.HIGH)  
-    time.sleep(1) 
-    GPIO.output(4, GPIO.LOW) 
-
-    GPIO.cleanup()
-
-
-def get_temperature_pressure():
-    bus = smbus.SMBus(1)
-    # Sensor I2C address
-    ADDR = 0x68
-
-    bus.write_byte_data(ADDR, 0x26, 0x39)
-    bus.write_byte_data(ADDR, 0x13, 0x07)
-    time.sleep(1) 
-
-    data = bus.read_i2c_block_data(ADDR, 0x00, 6)
-
-    pres_raw = ((data[1] << 16) | (data[2] << 8) | data[3]) >> 4
-    pressure = pres_raw / 8.0 / 1000.0  
-
-    temp_raw = ((data[4] << 8) | data[5]) >> 4
-    cTemp = temp_raw / 16.0  
-    fTemp = cTemp * 1.8 + 32 
-
-    print("Pressure : %.2f kPa" % pressure)
-    print("Temperature in Celsius : %.2f C" % cTemp)
-    print("Temperature in Fahrenheit : %.2f F" % fTemp)
-
-    return {'temperature':cTemp,'pressure':pressure}
-
-
-
-
-def read_acceleration():
-    bus = smbus.SMBus(1)
-    bus.write_byte_data(ADXL345_ADDR, ADXL345_REG_POWER_CTL, 0x08)
-    bus.write_byte_data(ADXL345_ADDR, ADXL345_REG_DATA_FORMAT, 0x08)
-    time.sleep(1)
-
+def air_quality_ccs811(bus):
     try:
-        accel_data = read_acceleration()
-        time.sleep(1)
-
-        x0 = bus.read_byte_data(ADXL345_ADDR, ADXL345_REG_DATAX0)
-        x1 = bus.read_byte_data(ADXL345_ADDR, ADXL345_REG_DATAX1)
-        y0 = bus.read_byte_data(ADXL345_ADDR, ADXL345_REG_DATAY0)
-        y1 = bus.read_byte_data(ADXL345_ADDR, ADXL345_REG_DATAY1)
-        z0 = bus.read_byte_data(ADXL345_ADDR, ADXL345_REG_DATAZ0)
-        z1 = bus.read_byte_data(ADXL345_ADDR, ADXL345_REG_DATAZ1)
-        
-        x = (x1 << 8) | x0
-        y = (y1 << 8) | y0
-        z = (z1 << 8) | z0
-
-        if x > 32767:
-            x -= 65536
-        if y > 32767:
-            y -= 65536
-        if z > 32767:
-            z -= 65536
-        print(f"X: {accel_data['x']} Y: {accel_data['y']} Z: {accel_data['z']}")
-        return {'x': x, 'y': y, 'z': z}
-
-    except KeyboardInterrupt:
-        print("Measurement stopped by user.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        time.sleep(1)
-
-
-
-
-def read_gps_data():
-    # Configure the serial port
-    ser = serial.Serial(
-        port='/dev/serial0',  # Use the correct serial port
-        baudrate=9600,        # Baud rate for the MC60
-        timeout=1             # Timeout in seconds
-    )
-
-    try:
-        # Give the module some time to initialize
-        time.sleep(2)
-        # Send a command to start GPS (if needed)
-        ser.write(b'AT+QGPS=1\r')
-
-        # Allow time for the GPS module to acquire signals
-        time.sleep(2)
-
-        # Read GPS data
-        while True:
-            line = ser.readline().decode('utf-8').strip()
-            print(line)
-            if line.startswith('$GNRMC'):  # Look for the RMC sentence
-                print("RMC Sentence:", line)
-                return {'gps':line}
-                # break  # Exit after finding one RMC sentence
-
+        # Read 4 bytes of data from the ALG_RESULT_DATA register
+        data = bus.read_i2c_block_data(CCS811_I2C_ADDRESS, CCS811_ALG_RESULT_DATA, 4)
+        # Extract eCO2 and TVOC values
+        eCO2_local = (data[0] << 8) | data[1]
+        TVOC_local = (data[2] << 8) | data[3]
+        return eCO2_local, TVOC_local
     except Exception as e:
         print(f"Error: {e}")
-    finally:
-        # Close the serial connection
-        ser.close()
+
+
+def get_pressure_mpl3115(bus):
+    mpl_address = 0x60
+    # MPL3115A2 address, 0x60(96)
+    # Select control register, 0x26(38)
+    # 		0xB9(185)	Active mode, OSR = 128, Altimeter mode
+    bus.write_byte_data(mpl_address, 0x26, 0xB9)
+    # MPL3115A2 address, 0x60(96)
+    # Select data configuration register, 0x13(19)
+    # 		0x07(07)	Data ready event enabled for altitude, pressure, temperature
+    bus.write_byte_data(mpl_address, 0x13, 0x07)
+    # MPL3115A2 address, 0x60(96)
+    # Select control register, 0x26(38)
+    # 		0xB9(185)	Active mode, OSR = 128, Altimeter mode
+    bus.write_byte_data(mpl_address, 0x26, 0xB9)
+
+    time.sleep(0.5)
+
+    # MPL3115A2 address, 0x60(96)
+    # Read data back from 0x00(00), 6 bytes
+    # status, tHeight MSB1, tHeight MSB, tHeight LSB, temp MSB, temp LSB
+    data = bus.read_i2c_block_data(mpl_address, 0x00, 6)
+
+    # Convert the data to 20-bits
+    tHeight = ((data[1] * 65536) + (data[2] * 256) + (data[3] & 0xF0)) / 16
+    temp = ((data[4] * 256) + (data[5] & 0xF0)) / 16
+    altitude_local = tHeight / 16.0
+    cTemp_local = temp / 16.0
+
+    # MPL3115A2 address, 0x60(96)
+    # Select control register, 0x26(38)
+    # 		0x39(57)	Active mode, OSR = 128, Barometer mode
+    bus.write_byte_data(0x60, 0x26, 0x39)
+
+    time.sleep(0.5)
+
+    # MPL3115A2 address, 0x60(96)
+    # Read data back from 0x00(00), 4 bytes
+    # status, pres MSB1, pres MSB, pres LSB
+    data = bus.read_i2c_block_data(0x60, 0x00, 4)
+    # TODO how to convert datasheet
+    # Convert the data to 20-bits
+    pres = ((data[1] * 65536) + (data[2] * 256) + (data[3] & 0xF0)) / 16
+    pressure_local = (pres / 4.0) / 1000.0
+
+    return pressure_local, altitude_local, cTemp_local
+
+
+def accelerometer_mpu(mpu):
+    # Read the accelerometer, gyroscope, and magnetometer values
+    accel_data_local = mpu.readAccelerometerMaster()
+    gyro_data_local = mpu.readGyroscopeMaster()
+    mag_data_local = mpu.readMagnetometerMaster()
+
+    return accel_data_local, gyro_data_local, mag_data_local
+
+
+def temperature_sht(bus):
+    # آدرس I2C سنسور
+    SHT35_ADDRESS = 0x44
+
+    # دستورات برای خواندن دما و رطوبت از سنسور SHT35
+    # دستور برای خواندن دما و رطوبت با دقت متوسط
+    command = 0x2C06
+    try:
+        # ارسال دستور به سنسور
+        bus.write_i2c_block_data(SHT35_ADDRESS, command >> 8, [command & 0xFF])
+
+        # خواندن داده‌ها از سنسور
+        data = bus.read_i2c_block_data(SHT35_ADDRESS, 0, 6)
+
+        # تبدیل داده‌های خام به دما و رطوبت
+        temp_c_local = ((data[0] * 256 + data[1]) * 175.0 / 65535) - 45
+        humidity_local = (data[3] * 256 + data[4]) * 100.0 / 65535
+        return temp_c_local, humidity_local
+    except OSError as e:
+        print(f"Error: {e}")
+
+
+def capture_and_compress_image(picam2, filename):
+
+    # Capture the image to a memory buffer
+    image_buffer = io.BytesIO()
+    picam2.capture_file(image_buffer, format="jpeg")
+
+    # Seek to the beginning of the buffer
+    image_buffer.seek(0)
+
+    # Open image with PIL
+    image = Image.open(image_buffer)
+    image.save(filename + "main" + "jpg", format="jpeg", quality=100)
+    # Save the image with the desired quality
+    image.save(filename + "jpg", format="jpeg", quality=80)
+
+    return filename + "jpg"
+
+
+def change_vars(type_var, var):
+    global eCO2
+    global TVOC
+    global pressure
+    global altitude
+    global cTemp
+    global accel_data
+    global gyro_data
+    global mag_data
+    global temp_c
+    global humidity
+    global camera_path
+
+    if type_var == "eCO2":
+        if int(var) < 20000:
+            eCO2 = var
+        return
+    if type_var == "TVOC":
+        if int(var) < 20000:
+            TVOC = var
+        return
+    if type_var == "pressure":
+        pressure = var
+        return
+    if type_var == "altitude":
+        if int(var) < 2000:
+            altitude = var
+        return
+    if type_var == "cTemp":
+        if int(var) < 100:
+            cTemp = var
+        return
+    if type_var == "accel_data":
+        accel_data = var
+        return
+    if type_var == "gyro_data":
+        gyro_data = var
+        return
+    if type_var == "mag_data":
+        mag_data = var
+        return
+    if type_var == "temp_c":
+        if int(var) < 100:
+            temp_c = var
+        return
+    if type_var == "humidity":
+        if int(var) < 100:
+            humidity = var
+        return
+    if type_var == "camera":
+        camera_path = var
+        return
+
+
+def nrf():
+    while True:
+        print(f"eCO2: {eCO2} ppm, TVOC: {TVOC} ppb")
+        print("Pressure : %.2f kPa" % pressure)
+        print("Altitude : %.2f m" % altitude)
+        print("Temperature in Celsius  : %.2f C" % cTemp)
+        print("Accelerometer:", accel_data)
+        print("Gyroscope:", gyro_data)
+        print("Magnetometer:", mag_data)
+        print(f"Temperature: {temp_c:.2f} °C, Humidity: {humidity:.2f} %")
+        print('last image path: ',camera_path)
+        print("---------------------------------------")
+        time.sleep(1)
+
 
 if __name__ == "__main__":
-    buzzer()
-    get_temperature_pressure()
-    read_acceleration()
-    read_gps_data()
+    # Initialize I2C (SMBus)
+    bus1 = smbus.SMBus(1)
+    bus2 = smbus2.SMBus(1)
+
+    # ConfigSensors
+
+    # Initialize the camera
+    picam2 = Picamera2()
+    # Configure the camera for still images with specified resolution
+    config = picam2.create_still_configuration(
+        main={"size": (1920, 1080)}  # Set resolution to 1920x1080
+    )
+    picam2.configure(config)
+    # Start the camera (without preview)
+    picam2.start()
+
+    # ccs811 config
+    # Start the application
+    bus2.write_byte(CCS811_I2C_ADDRESS, CCS811_APP_START)
+    time.sleep(0.1)
+    # Set measurement mode (continuous measurement every second)
+    bus2.write_byte_data(CCS811_I2C_ADDRESS, CCS811_MEAS_MODE, 0x10)
+    time.sleep(0.1)
+
+    # Create an MPU9250 instance
+    mpu = MPU9250(
+        address_ak=AK8963_ADDRESS,
+        address_mpu_master=MPU9050_ADDRESS_68,  # In case the MPU9250 is connected to another I2C device
+        address_mpu_slave=None,
+        bus=1,
+        gfs=GFS_1000,
+        afs=AFS_8G,
+        mfs=AK8963_BIT_16,
+        mode=AK8963_MODE_C100HZ,
+    )
+    # Configure the MPU9250
+    mpu.configure()
+    # edn config
+
+    x = threading.Thread(target=nrf, args=())
+    x.start()
+    i = 1
+    filename = "images/captured_image"
+    while True:
+        try:
+            eCO2_local, TVOC_local = air_quality_ccs811(bus2)
+            change_vars("eCO2", eCO2_local)
+            change_vars("TVOC", TVOC_local)
+
+            pressure_local, altitude_local, cTemp_local = get_pressure_mpl3115(bus1)
+            change_vars("pressure", pressure_local)
+            change_vars("altitude", altitude_local)
+            change_vars("cTemp", cTemp_local)
+
+            accel_data, gyro_data, mag_data = accelerometer_mpu(mpu)
+            change_vars("accel_data", accel_data)
+            change_vars("gyro_data", gyro_data)
+            change_vars("mag_data", mag_data)
+
+            temp_c, humidity = temperature_sht(bus2)
+            change_vars("temp_c", temp_c)
+            change_vars("humidity", humidity)
+        except Exception as e:
+            print("some error:", e)
+        try:
+            path_file = capture_and_compress_image(picam2, filename + str(i))
+            change_vars("camera", path_file)
+            i = i + 1
+        except:
+            # Stop the camera
+            picam2.stop()
+            print("stoped camera")
+            break
+        time.sleep(1)
