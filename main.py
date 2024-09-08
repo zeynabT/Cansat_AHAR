@@ -9,7 +9,18 @@ from mpu9250_jmdev.mpu_9250 import MPU9250
 from picamera2 import Picamera2
 from PIL import Image
 import io
+import logging
 
+logging.basicConfig(
+        filename="app.log",
+        encoding="utf-8",
+        filemode="a",
+        format="{asctime}-{levelname}-{message}",
+        style="{",
+        datefmt="%Y-%m-%d %H:%M",
+        level=logging.INFO
+    )
+logger=logging.getLogger()
 # vars
 eCO2 = 0
 TVOC = 0
@@ -21,7 +32,7 @@ gyro_data = []
 mag_data = []
 temp_c = 0
 humidity = 0
-camera_path = ''
+camera_path = ""
 
 # Constants for the CCS811
 CCS811_I2C_ADDRESS = 0x5A
@@ -151,7 +162,7 @@ def change_vars(type_var, var):
     global temp_c
     global humidity
     global camera_path
-
+    logger.info('sensor {} get value {}'.format(type_var,var))
     if type_var == "eCO2":
         if int(var) < 20000:
             eCO2 = var
@@ -203,19 +214,20 @@ def nrf():
         print("Gyroscope:", gyro_data)
         print("Magnetometer:", mag_data)
         print(f"Temperature: {temp_c:.2f} °C, Humidity: {humidity:.2f} %")
-        print('last image path: ',camera_path)
+        print("last image path: ", camera_path)
         print("---------------------------------------")
         time.sleep(1)
 
 
 if __name__ == "__main__":
+    
     # Initialize I2C (SMBus)
     bus1 = smbus.SMBus(1)
     bus2 = smbus2.SMBus(1)
 
-    # ConfigSensors
-
+    logger.info("ConfigSensors")
     # Initialize the camera
+    logger.info("Initialize the camera")
     picam2 = Picamera2()
     # Configure the camera for still images with specified resolution
     config = picam2.create_still_configuration(
@@ -227,6 +239,7 @@ if __name__ == "__main__":
 
     # ccs811 config
     # Start the application
+    logger.info("config ccs811")
     bus2.write_byte(CCS811_I2C_ADDRESS, CCS811_APP_START)
     time.sleep(0.1)
     # Set measurement mode (continuous measurement every second)
@@ -234,6 +247,7 @@ if __name__ == "__main__":
     time.sleep(0.1)
 
     # Create an MPU9250 instance
+    logger.info("Create an MPU9250 instance")
     mpu = MPU9250(
         address_ak=AK8963_ADDRESS,
         address_mpu_master=MPU9050_ADDRESS_68,  # In case the MPU9250 is connected to another I2C device
@@ -247,7 +261,7 @@ if __name__ == "__main__":
     # Configure the MPU9250
     mpu.configure()
     # edn config
-
+    logger.info("start Thread nrf")
     x = threading.Thread(target=nrf, args=())
     x.start()
     i = 1
