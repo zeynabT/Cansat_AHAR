@@ -136,11 +136,13 @@ def image_proccess_ahar(img_path,height_in_m):
             
             # print(f"Area in Pixels: {area_in_pixels}")
             # print(f"Pixel per Meter: {pixel_per_m}\n")
-
+        
+        print(img_path.split('.')[-2]+'-result.jpg')
+        cv2.imwrite(img_path.split('.')[-2]+'result.jpg',image)
         show_images([image])
 
 
 if __name__=='__main__':
-    img_path = "./image processing/image/real_image.jpg"
+    img_path = "image processing/image/4_1_352rectan_57circle.jpg"
     real_world_height_in_m = 1  # Real-world height of the scene
     image_proccess_ahar(img_path,real_world_height_in_m)

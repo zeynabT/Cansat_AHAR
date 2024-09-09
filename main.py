@@ -172,15 +172,15 @@ def change_vars(type_var, var):
             TVOC = var
         return
     if type_var == "pressure":
-        pressure = var
+        pressure = round(var,2)
         return
     if type_var == "altitude":
         if int(var) < 2000:
-            altitude = var
+            altitude = round(var,2)
         return
     if type_var == "cTemp":
         if int(var) < 100:
-            cTemp = var
+            cTemp = round(var,2)
         return
     if type_var == "accel_data":
         accel_data = var
@@ -193,7 +193,7 @@ def change_vars(type_var, var):
         return
     if type_var == "temp_c":
         if int(var) < 100:
-            temp_c = var
+            temp_c = round(var,2)
         return
     if type_var == "humidity":
         if int(var) < 100:
