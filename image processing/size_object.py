@@ -40,98 +40,107 @@ def calculate_area(shape, cnt, pixel_per_m):
     area_in_m2 = area_in_pixels / (pixel_per_m ** 2)
     return area_in_m2
 
-img_path = "./image processing/image/9_21_352rectan_57circle.jpg"
-real_world_height_in_m = 21  # Real-world height of the scene
-
-image = cv2.imread(img_path)
-
-if image is None:
-    print("Error: Unable to load the image.")
-else:
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (9, 9), 0)
-
-    edged = cv2.Canny(blur, 50, 100)
-    edged = cv2.dilate(edged, None, iterations=1)
-    edged = cv2.erode(edged, None, iterations=1)
-
-    cnts = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    cnts = imutils.grab_contours(cnts)
-
-    (cnts, _) = contours.sort_contours(cnts)
-
-    cnts = [x for x in cnts if cv2.contourArea(x) > 100]
-
-    if len(cnts) == 0:
-        print("No contours found.")
-        exit()
-
-    image_height_in_pixels = image.shape[0]
-    image_width_in_pixels = image.shape[1]
-
-    # Calculate real-world width based on aspect ratio
-    real_world_width_in_m = real_world_height_in_m * (4 / 3)
-
-    # Calculate pixel-per-meter for both dimensions
-    pixel_per_m_height = image_height_in_pixels / real_world_height_in_m
-    pixel_per_m_width = image_width_in_pixels / real_world_width_in_m
-
-    # Average pixel-per-meter ratio
-    pixel_per_m = (pixel_per_m_height + pixel_per_m_width) / 2
-
-    header = ['color', 'color_name', 'hexa', 'r', 'g', 'b']
-    csv = pd.read_csv('./image processing/colors.csv', names=header, header=0)
-
-    sd = ShapeDetector()
-
-    for cnt in cnts:
-        shape = sd.detect(cnt)
-
-        # Draw contours in red for visual inspection
-        cv2.drawContours(image, [cnt], -1, (0, 0, 255), 2)
-
-        # Calculate area and handle shapes
-        if shape == "circle":
-            ((x, y), radius) = cv2.minEnclosingCircle(cnt)
-            center = (int(x), int(y))
-            radius = int(radius)
-            cv2.circle(image, center, radius, (0, 255, 0), 2)
-        elif shape == "triangle":
-            approx = cv2.approxPolyDP(cnt, 0.04 * cv2.arcLength(cnt, True), True)
-            cv2.drawContours(image, [approx], -1, (0, 255, 0), 2)
-        else:
-            box = cv2.minAreaRect(cnt)
-            box = cv2.boxPoints(box)
-            box = np.array(box, dtype="int")
-            box = perspective.order_points(box)
-            cv2.drawContours(image, [box.astype("int")], -1, (0, 255, 0), 2)
-
-        area_in_m2 = calculate_area(shape, cnt, pixel_per_m)
 
 
-        # Draw area and color information
-        if shape == "circle":
-            center_x, center_y = int(x), int(y)
-        else:
-            tl, tr, br, bl = box
-            center_x = int((tl[0] + tr[0] + br[0] + bl[0]) / 4)
-            center_y = int((tl[1] + tr[1] + br[1] + bl[1]) / 4)
 
-        cv2.putText(image, "{:.4f}m^2".format(area_in_m2), (center_x - 15, center_y - 10), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
+def image_proccess_ahar(img_path,height_in_m):
+    real_world_height_in_m=height_in_m
 
-        b, g, r = image[center_y, center_x]
-        color_name = get_color(r, g, b, csv)
-        cv2.putText(image, f"{color_name} ({shape})", (center_x, center_y), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+    image = cv2.imread(img_path)
 
-        # Print area for debugging
-        area_in_pixels = cv2.contourArea(cnt)
-        print(f"Shape: {shape}")
-        print(f"Area in m²: {area_in_m2}")
-        print(f"Color: {color_name}\n")
-        
-        # print(f"Area in Pixels: {area_in_pixels}")
-        # print(f"Pixel per Meter: {pixel_per_m}\n")
+    if image is None:
+        print("Error: Unable to load the image.")
+    else:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        blur = cv2.GaussianBlur(gray, (9, 9), 0)
 
-    show_images([image])
+        edged = cv2.Canny(blur, 50, 100)
+        edged = cv2.dilate(edged, None, iterations=1)
+        edged = cv2.erode(edged, None, iterations=1)
+
+        cnts = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cnts = imutils.grab_contours(cnts)
+
+        (cnts, _) = contours.sort_contours(cnts)
+
+        cnts = [x for x in cnts if cv2.contourArea(x) > 100]
+
+        if len(cnts) == 0:
+            print("No contours found.")
+            exit()
+
+        image_height_in_pixels = image.shape[0]
+        image_width_in_pixels = image.shape[1]
+
+        # Calculate real-world width based on aspect ratio
+        real_world_width_in_m = real_world_height_in_m * (4 / 3)
+
+        # Calculate pixel-per-meter for both dimensions
+        pixel_per_m_height = image_height_in_pixels / real_world_height_in_m
+        pixel_per_m_width = image_width_in_pixels / real_world_width_in_m
+
+        # Average pixel-per-meter ratio
+        pixel_per_m = (pixel_per_m_height + pixel_per_m_width) / 2
+
+        header = ['color', 'color_name', 'hexa', 'r', 'g', 'b']
+        csv = pd.read_csv('./image processing/colors.csv', names=header, header=0)
+
+        sd = ShapeDetector()
+
+        for cnt in cnts:
+            shape = sd.detect(cnt)
+
+            # Draw contours in red for visual inspection
+            cv2.drawContours(image, [cnt], -1, (0, 0, 255), 2)
+
+            # Calculate area and handle shapes
+            if shape == "circle":
+                ((x, y), radius) = cv2.minEnclosingCircle(cnt)
+                center = (int(x), int(y))
+                radius = int(radius)
+                cv2.circle(image, center, radius, (0, 255, 0), 2)
+            elif shape == "triangle":
+                approx = cv2.approxPolyDP(cnt, 0.04 * cv2.arcLength(cnt, True), True)
+                cv2.drawContours(image, [approx], -1, (0, 255, 0), 2)
+            else:
+                box = cv2.minAreaRect(cnt)
+                box = cv2.boxPoints(box)
+                box = np.array(box, dtype="int")
+                box = perspective.order_points(box)
+                cv2.drawContours(image, [box.astype("int")], -1, (0, 255, 0), 2)
+
+            area_in_m2 = calculate_area(shape, cnt, pixel_per_m)
+
+
+            # Draw area and color information
+            if shape == "circle":
+                center_x, center_y = int(x), int(y)
+            else:
+                tl, tr, br, bl = box
+                center_x = int((tl[0] + tr[0] + br[0] + bl[0]) / 4)
+                center_y = int((tl[1] + tr[1] + br[1] + bl[1]) / 4)
+
+            cv2.putText(image, "{:.4f}m^2".format(area_in_m2), (center_x - 15, center_y - 10), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
+
+            b, g, r = image[center_y, center_x]
+            color_name = get_color(r, g, b, csv)
+            cv2.putText(image, f"{color_name} ({shape})", (center_x, center_y), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+            # Print area for debugging
+            area_in_pixels = cv2.contourArea(cnt)
+            print(f"Shape: {shape}")
+            print(f"Area in m²: {area_in_m2}")
+            print(f"Color: {color_name}\n")
+            
+            # print(f"Area in Pixels: {area_in_pixels}")
+            # print(f"Pixel per Meter: {pixel_per_m}\n")
+
+        show_images([image])
+
+
+if __name__=='__main__':
+    img_path = "./image processing/image/real_image.jpg"
+    real_world_height_in_m = 1  # Real-world height of the scene
+    image_proccess_ahar(img_path,real_world_height_in_m)
