@@ -203,6 +203,22 @@ def change_vars(type_var, var):
         camera_path = var
         return
 
+def chunk_img(image_path):
+    img = Image.open(image_path)
+
+    # Step 2: Convert the image to bytes
+    byte_io = io.BytesIO()
+    img.save(byte_io, format='JPEG')
+    byte_data = byte_io.getvalue()
+
+    # Step 3: Chunk the byte array into 128-byte chunks
+    chunk_size = 128
+    chunks = [byte_data[i:i + chunk_size] for i in range(0, len(byte_data), chunk_size)]
+
+    # Step 4: Display the chunks
+    for index, chunk in enumerate(chunks):
+        print(f"Chunk {index + 1}: {chunk} (Size: {len(chunk)} bytes)")
+
 
 def nrf():
     # data make to send
@@ -227,7 +243,7 @@ def nrf():
 
     for ba in byte_arrays:
         print(ba)
-        
+
     while True:
         print(f"eCO2: {eCO2} ppm, TVOC: {TVOC} ppb")
         print("Pressure : %.2f kPa" % pressure)
