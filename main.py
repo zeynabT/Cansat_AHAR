@@ -205,6 +205,29 @@ def change_vars(type_var, var):
 
 
 def nrf():
+    # data make to send
+    send_time = ("%s_" % round(time.time() - start_timer, 1))
+    locationX = "%sLx_36.31130898586006" % send_time
+    locationY = "%sLy_59.526375931025" % send_time
+    Acceleration = "%sA_{}*{}*{}".format(accel_data[0],accel_data[1],accel_data[2]) % send_time
+    Angular_acceleration = "%sZ_{}*{}*{}".format(gyro_data[0],gyro_data[1],gyro_data[2]) % send_time
+    temp = "%sT_{}".format(temp_c) % send_time
+    humedity = "%sH_{}".format(humedity) % send_time
+    hight = "%sL_{}".format(altitude) % send_time
+    presure = "%sP_{}".format(pressure) % send_time
+    tvoc = "%sTV_{}".format(TVOC) % send_time
+    eco2 = "%sCO_{}".format(eCO2) % send_time
+    # uv = "%sU_{}".format(secrets.randbelow(250)) % send_time
+
+    payloader = [locationX, locationY, Acceleration, hight, presure,
+                    Angular_acceleration, temp, humedity,eco2,tvoc]
+
+    # Convert each string to bytearray individually
+    byte_arrays = [bytearray(word, 'utf-8') for word in payloader]
+
+    for ba in byte_arrays:
+        print(ba)
+        
     while True:
         print(f"eCO2: {eCO2} ppm, TVOC: {TVOC} ppb")
         print("Pressure : %.2f kPa" % pressure)
