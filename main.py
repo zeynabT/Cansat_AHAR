@@ -12,7 +12,7 @@ import io
 import logging
 
 logging.basicConfig(
-        filename="app.log",
+        filename="/home/rpi/code/app.log",
         encoding="utf-8",
         filemode="a",
         format="{asctime}-{levelname}-{message}",
@@ -221,29 +221,7 @@ def chunk_img(image_path):
 
 
 def nrf():
-    # data make to send
-    send_time = ("%s_" % round(time.time() - start_timer, 1))
-    locationX = "%sLx_36.31130898586006" % send_time
-    locationY = "%sLy_59.526375931025" % send_time
-    Acceleration = "%sA_{}*{}*{}".format(accel_data[0],accel_data[1],accel_data[2]) % send_time
-    Angular_acceleration = "%sZ_{}*{}*{}".format(gyro_data[0],gyro_data[1],gyro_data[2]) % send_time
-    temp = "%sT_{}".format(temp_c) % send_time
-    humedity = "%sH_{}".format(humedity) % send_time
-    hight = "%sL_{}".format(altitude) % send_time
-    presure = "%sP_{}".format(pressure) % send_time
-    tvoc = "%sTV_{}".format(TVOC) % send_time
-    eco2 = "%sCO_{}".format(eCO2) % send_time
-    # uv = "%sU_{}".format(secrets.randbelow(250)) % send_time
-
-    payloader = [locationX, locationY, Acceleration, hight, presure,
-                    Angular_acceleration, temp, humedity,eco2,tvoc]
-
-    # Convert each string to bytearray individually
-    byte_arrays = [bytearray(word, 'utf-8') for word in payloader]
-
-    for ba in byte_arrays:
-        print(ba)
-
+    # start_timer=time.time()
     while True:
         print(f"eCO2: {eCO2} ppm, TVOC: {TVOC} ppb")
         print("Pressure : %.2f kPa" % pressure)
@@ -255,56 +233,89 @@ def nrf():
         print(f"Temperature: {temp_c:.2f} °C, Humidity: {humidity:.2f} %")
         print("last image path: ", camera_path)
         print("---------------------------------------")
+        # data make to send
+    
+        # send_time = ("%s_" % round(time.time() - start_timer, 1))
+        # locationX = "%sLx_36.31130898586006" % send_time
+        # locationY = "%sLy_59.526375931025" % send_time
+        # Acceleration = "%sA_{}*{}*{}".format(accel_data[0],accel_data[1],accel_data[2]) % send_time
+        # Angular_acceleration = "%sZ_{}*{}*{}".format(gyro_data[0],gyro_data[1],gyro_data[2]) % send_time
+        # temp = "%sT_{}".format(temp_c) % send_time
+        # humedity = "%sH_{}".format(humedity) % send_time
+        # hight = "%sL_{}".format(altitude) % send_time
+        # presure = "%sP_{}".format(pressure) % send_time
+        # tvoc = "%sTV_{}".format(TVOC) % send_time
+        # eco2 = "%sCO_{}".format(eCO2) % send_time
+        # uv = "%sU_{}".format(secrets.randbelow(250)) % send_time
+
+        # payloader = [locationX, locationY, Acceleration, hight, presure,
+        #                 Angular_acceleration, temp, humedity,eco2,tvoc]
+
+        # # Convert each string to bytearray individually
+        # byte_arrays = [bytearray(word, 'utf-8') for word in payloader]
+
+        # for ba in byte_arrays:
+        #     print(ba)
+
         time.sleep(1)
 
 
 if __name__ == "__main__":
     
     # Initialize I2C (SMBus)
-    bus1 = smbus.SMBus(1)
-    bus2 = smbus2.SMBus(1)
-
+    try:
+        bus1 = smbus.SMBus(1)
+        bus2 = smbus2.SMBus(1)
+    except Exception as e:
+        logger.info("fail i2c ConfigSensors")
     logger.info("ConfigSensors")
     # Initialize the camera
-    logger.info("Initialize the camera")
-    picam2 = Picamera2()
-    # Configure the camera for still images with specified resolution
-    config = picam2.create_still_configuration(
-        main={"size": (1920, 1080)}  # Set resolution to 1920x1080
-    )
-    picam2.configure(config)
-    # Start the camera (without preview)
-    picam2.start()
-
+    try:
+        logger.info("Initialize the camera")
+        picam2 = Picamera2()
+        # Configure the camera for still images with specified resolution
+        config = picam2.create_still_configuration(
+            main={"size": (1920, 1080)}  # Set resolution to 1920x1080
+        )
+        picam2.configure(config)
+        # Start the camera (without preview)
+        picam2.start()
+    except Exception as e:
+        logger.info('error camera')
     # ccs811 config
     # Start the application
-    logger.info("config ccs811")
-    bus2.write_byte(CCS811_I2C_ADDRESS, CCS811_APP_START)
-    time.sleep(0.1)
-    # Set measurement mode (continuous measurement every second)
-    bus2.write_byte_data(CCS811_I2C_ADDRESS, CCS811_MEAS_MODE, 0x10)
-    time.sleep(0.1)
-
+    try:
+        logger.info("config ccs811")
+        bus2.write_byte(CCS811_I2C_ADDRESS, CCS811_APP_START)
+        time.sleep(0.1)
+        # Set measurement mode (continuous measurement every second)
+        bus2.write_byte_data(CCS811_I2C_ADDRESS, CCS811_MEAS_MODE, 0x10)
+        time.sleep(0.1)
+    except Exception as e:
+        logger.info('error i2c')
+    try:
     # Create an MPU9250 instance
-    logger.info("Create an MPU9250 instance")
-    mpu = MPU9250(
-        address_ak=AK8963_ADDRESS,
-        address_mpu_master=MPU9050_ADDRESS_68,  # In case the MPU9250 is connected to another I2C device
-        address_mpu_slave=None,
-        bus=1,
-        gfs=GFS_1000,
-        afs=AFS_8G,
-        mfs=AK8963_BIT_16,
-        mode=AK8963_MODE_C100HZ,
-    )
-    # Configure the MPU9250
-    mpu.configure()
+        logger.info("Create an MPU9250 instance")
+        mpu = MPU9250(
+            address_ak=AK8963_ADDRESS,
+            address_mpu_master=MPU9050_ADDRESS_68,  # In case the MPU9250 is connected to another I2C device
+            address_mpu_slave=None,
+            bus=1,
+            gfs=GFS_1000,
+            afs=AFS_8G,
+            mfs=AK8963_BIT_16,
+            mode=AK8963_MODE_C100HZ,
+        )
+        # Configure the MPU9250
+        mpu.configure()
+    except Exception as e:
+        logger.info("error mpu")
     # edn config
     logger.info("start Thread nrf")
     x = threading.Thread(target=nrf, args=())
     x.start()
     i = 1
-    filename = "images/captured_image"
+    filename = "/home/rpi/code/images/captured_image"
     while True:
         try:
             eCO2_local, TVOC_local = air_quality_ccs811(bus2)
